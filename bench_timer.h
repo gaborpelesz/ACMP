@@ -17,6 +17,12 @@
 // killed by the timeout, or runs out of memory survives up to the last
 // completed boundary.
 //
+// BENCH_PHASE(name, ...) opens a span that closes when its block does. Where a
+// phase ends part-way through a scope whose locals are still live -- HPM-MVS's
+// per-level prior blocks -- BENCH_PHASE_BEGIN/BENCH_PHASE_END name the scope
+// and close it explicitly, so the span boundaries stay where the phase survey
+// puts them instead of where C++ scoping happens to allow.
+//
 // BENCH_SYNC() is for CUMVS, the only implementation whose kernel launches are
 // not all followed by a device synchronisation; everywhere else a host
 // timestamp is already GPU-truthful and adding a barrier would change what is
@@ -104,18 +110,23 @@ public:
         emit(name_, "BEGIN", attributes_);
     }
 
-    ~Scope()
+    // Closes the span before the enclosing scope does. Idempotent.
+    void end()
     {
-        if (enabled()) {
+        if (open_ && enabled()) {
             emit(name_, "END", attributes_);
         }
+        open_ = false;
     }
+
+    ~Scope() { end(); }
 
     Scope(const Scope &) = delete;
     Scope &operator=(const Scope &) = delete;
 
 private:
     const char *name_;
+    bool open_ = true;
     char attributes_[192];
 };
 
@@ -125,6 +136,8 @@ private:
 #define BENCH_JOIN(a, b) BENCH_JOIN_(a, b)
 #define BENCH_PHASE(name, ...) \
     ::bench::Scope BENCH_JOIN(bench_scope_, __LINE__)(name, ##__VA_ARGS__)
+#define BENCH_PHASE_BEGIN(scope, name, ...) ::bench::Scope scope(name, ##__VA_ARGS__)
+#define BENCH_PHASE_END(scope) (scope).end()
 
 #ifdef CUDART_VERSION
 #define BENCH_SYNC()                        \
@@ -138,6 +151,8 @@ private:
 #else
 
 #define BENCH_PHASE(name, ...) ((void)0)
+#define BENCH_PHASE_BEGIN(scope, name, ...) ((void)0)
+#define BENCH_PHASE_END(scope) ((void)0)
 #define BENCH_SYNC() ((void)0)
 
 #endif
