@@ -7,7 +7,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 find_package(CUDA REQUIRED) # For Cuda Managed Memory and c++11
 find_package(Eigen3 REQUIRED)
-find_package(OpenCV REQUIRED)
+find_package(OpenCV REQUIRED core imgproc imgcodecs)
 
 include_directories(${OpenCV_INCLUDE_DIRS})
 include_directories(.)
