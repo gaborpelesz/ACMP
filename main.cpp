@@ -2,6 +2,11 @@
 #include "ACMP.h"
 #include "bench_timer.h"
 
+// Upstream always writes triangulation.png for every planar-prior pass. The
+// campaign turns that write off with --no-debug-output; the default keeps the
+// released behaviour.
+static bool no_debug_output = false;
+
 void GenerateSampleList(const std::string &dense_folder, std::vector<Problem> &problems)
 {
     std::string cluster_list_path = dense_folder + std::string("/pair.txt");
@@ -115,9 +120,9 @@ void ProcessProblem(const std::string &dense_folder, const Problem &problem, boo
                     cv::line(srcImage, triangle.pt2, triangle.pt3, cv::Scalar(0, 0, 255));
                 }
             }
-            std::string triangulation_path = result_folder + "/triangulation.png";
-            {
+            if (!no_debug_output) {
                 BENCH_PHASE("depthmap_write.debug");
+                std::string triangulation_path = result_folder + "/triangulation.png";
                 cv::imwrite(triangulation_path, srcImage);
             }
 
@@ -366,11 +371,16 @@ int main(int argc, char** argv)
 {
     BENCH_PHASE("run");
     if (argc < 2) {
-        std::cout << "USAGE: ACMP dense_folder" << std::endl;
+        std::cout << "USAGE: ACMP dense_folder [--no-debug-output]" << std::endl;
         return -1;
     }
 
     std::string dense_folder = argv[1];
+    for (int i = 2; i < argc; ++i) {
+        if (std::string(argv[i]) == "--no-debug-output") {
+            no_debug_output = true;
+        }
+    }
     std::vector<Problem> problems;
     {
         BENCH_PHASE("problem_list");
